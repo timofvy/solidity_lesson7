@@ -32,7 +32,7 @@ export type { IPoolInitializer } from "./@uniswap/v3-periphery/contracts/interfa
 export { IPoolInitializer__factory } from "./factories/@uniswap/v3-periphery/contracts/interfaces/IPoolInitializer__factory";
 export type { ISwapRouter } from "./@uniswap/v3-periphery/contracts/interfaces/ISwapRouter";
 export { ISwapRouter__factory } from "./factories/@uniswap/v3-periphery/contracts/interfaces/ISwapRouter__factory";
-export type { ERC20 } from "./contracts/ERC20";
-export { ERC20__factory } from "./factories/contracts/ERC20__factory";
-export type { UniswapV3Adapter } from "./contracts/UniswapV3Adapter";
-export { UniswapV3Adapter__factory } from "./factories/contracts/UniswapV3Adapter__factory";
+export type { UniswapV3Adapter } from "./contracts/00_UniswapV3Adapter.sol/UniswapV3Adapter";
+export { UniswapV3Adapter__factory } from "./factories/contracts/00_UniswapV3Adapter.sol/UniswapV3Adapter__factory";
+export type { ERC20 } from "./contracts/01_ERC20.sol/ERC20";
+export { ERC20__factory } from "./factories/contracts/01_ERC20.sol/ERC20__factory";

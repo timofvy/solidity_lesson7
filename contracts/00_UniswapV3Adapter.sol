@@ -54,6 +54,20 @@ contract UniswapV3Adapter {
         nonfungiblePositionManager = _nonfungiblePositionManager;
     }
 
+    /**
+     * @notice Creates a new pool for the given tokens. If the tokens are not in the correct order, it swaps their positions.
+     * @param token0 The address of the first token.
+     * @param token1 The address of the second token.
+     * @param fee The fee for the pool.
+     * @param reserve0 The reserve of the first token.
+     * @param reserve1 The reserve of the second token.
+     * @return pool The address of the created pool.
+     * @dev This function creates a new Uniswap V3 pool for the specified tokens. If the tokens are not in the correct order,
+     * it swaps their positions to ensure consistency. The fee for the pool is also specified. The reserves of the tokens are
+     * used to compute the initial price of the pool. The `nonfungiblePositionManager.createAndInitializePoolIfNecessary`
+     * function is called to create the pool if it doesn't already exist. The function emits a `CreatePool` event to indicate
+     * the creation of the pool. The address of the created pool is returned.
+     */
     function createPool(
         address token0,
         address token1,
@@ -73,6 +87,27 @@ contract UniswapV3Adapter {
         return pool;
     }
 
+    /**
+     * @notice Mints a new position in the pool for the given tokens.
+     * @param token0 The address of the first token.
+     * @param token1 The address of the second token.
+     * @param poolFee The fee for the pool.
+     * @param amount0ToMint The amount of the first token to mint.
+     * @param amount1ToMint The amount of the second token to mint.
+     * @param minTick The lower tick boundary for the position.
+     * @param maxTick The upper tick boundary for the position.
+     * @return tokenId The ID of the minted position.
+     * @return liquidity The amount of liquidity minted.
+     * @return amount0 The actual amount of the first token minted.
+     * @return amount1 The actual amount of the second token minted.
+     *
+     * @dev This function mints a new position in the specified pool. The pool is identified by its address. The first and second tokens
+     * are specified, along with the desired tick boundaries of the position. The desired amounts of the tokens are also specified,
+     * as well as the minimum amounts to receive. The recipient of the minted position is specified, along with the deadline for
+     * the mint transaction. The function calls the `nonfungiblePositionManager.mint` function to mint the new position NFT. The
+     * function passes the specified parameters and returns the ID of the minted position NFT. It is important to note that the
+     * caller must have approved the ERC20 token spending by the `nonfungiblePositionManager` contract prior to calling this function.
+    */
     function mintNewPosition(
         address token0,
         address token1,
@@ -87,7 +122,6 @@ contract UniswapV3Adapter {
         TransferHelper.safeTransferFrom(token0, msg.sender, address(this), amount0ToMint);
         TransferHelper.safeTransferFrom(token1, msg.sender, address(this), amount1ToMint);
 
-        // Approve the position manager
         TransferHelper.safeApprove(token0, address(nonfungiblePositionManager), amount0ToMint);
         TransferHelper.safeApprove(token1, address(nonfungiblePositionManager), amount1ToMint);
 
@@ -106,13 +140,10 @@ contract UniswapV3Adapter {
                 deadline: block.timestamp
             });
 
-        // Note that the pool defined by token0/token1 and fee tier 0.05% must already be created and initialized in order to mint
         (tokenId, liquidity, amount0, amount1) = nonfungiblePositionManager.mint(params);
 
-        // Create a deposit
         _createDeposit(tokenId);
 
-        // Remove allowance and refund in both assets.
         if (amount0 < amount0ToMint) {
             TransferHelper.safeApprove(token0, address(nonfungiblePositionManager), 0);
             uint256 refund0 = amount0ToMint - amount0;
@@ -129,11 +160,13 @@ contract UniswapV3Adapter {
         return (tokenId, liquidity, amount0, amount1);
     }
 
+    /**
+     * @notice Creates a deposit for the given position.
+     * @param tokenId The ID of the position.
+     */
     function _createDeposit(uint256 tokenId) internal {
         (,,address token0,address token1,,,,uint128 liquidity,,,,) = nonfungiblePositionManager.positions(tokenId);
 
-        // set the owner and data for position
-        // operator is msg.sender
         deposits[tokenId] = Deposit({
             owner: owner,
             liquidity: liquidity,
@@ -142,10 +175,19 @@ contract UniswapV3Adapter {
         });
     }
 
+    /**
+     * @notice Collects all fees from the specified position.
+     * @param tokenId The ID of the position.
+     * @return amount0 The amount of the first token collected.
+     * @return amount1 The amount of the second token collected.
+     *
+     * @dev This function collects all accrued fees for the specified pool and transfers them to the recipient. The pool is
+     * identified by its address. The recipient of the collected fees is specified. The function calls the
+     * `nonfungiblePositionManager.collectAllFees` function to collect the fees. The function passes the specified parameters and
+     * returns the amount of fees collected. It is important to note that the caller must have approved the ERC20 token spending
+     * by the `nonfungiblePositionManager` contract prior to calling this function.
+    */
     function collectAllFees(uint256 tokenId) external returns (uint256 amount0, uint256 amount1) {
-        // set amount0Max and amount1Max to uint256.max to collect all fees
-        // alternatively can set recipient to msg.sender and avoid another transaction in `sendToOwner`
-
         INonfungiblePositionManager.CollectParams memory params = INonfungiblePositionManager
             .CollectParams({
                 tokenId: tokenId,
@@ -156,22 +198,42 @@ contract UniswapV3Adapter {
 
         (amount0, amount1) = nonfungiblePositionManager.collect(params);
 
-        // send collected feed back to owner
         _sendToOwner(tokenId, amount0, amount1);
         emit Collect(tokenId, amount0, amount1);
         return (amount0, amount1);
     }
 
+    /**
+     * @notice Sends the collected fees to the owner of the specified position.
+     * @param tokenId The ID of the position.
+     * @param amount0 The amount of the first token to send.
+     * @param amount1 The amount of the second token to send.
+     */
     function _sendToOwner(uint256 tokenId, uint256 amount0, uint256 amount1) internal {
         address recipient = deposits[tokenId].owner;
 
         address token0 = deposits[tokenId].token0;
         address token1 = deposits[tokenId].token1;
-        console.log("TOKENS----------", token0, token1);
+
         TransferHelper.safeTransfer(token0, recipient, amount0);
         TransferHelper.safeTransfer(token1, recipient, amount1);
     }
 
+    /**
+     * @notice Decreases the liquidity of the specified position.
+     * @param tokenId The ID of the position.
+     * @param liquidity The amount of liquidity to decrease.
+     * @return amount0 The amount of the first token received.
+     * @return amount1 The amount of the second token received.
+     *
+     * @dev This function decreases the liquidity of the specified position by the specified amount and retrieves the redeemed amounts
+     * of tokens. The position is identified by its token ID. The amount of liquidity to decrease is specified, along with the
+     * minimum amounts of tokens to retrieve. The recipient of the retrieved tokens is specified, along with the deadline for the
+     * decrease liquidity transaction. The function calls the `nonfungiblePositionManager.decreaseLiquidity` function to decrease
+     * the liquidity and retrieve the tokens. The function passes the specified parameters and returns the amounts of tokens
+     * retrieved. It is important to note that the caller must have approved the ERC721 token spending by the `nonfungiblePositionManager`
+     * contract for the specified token ID prior to calling this function.
+    */
     function decreaseLiquidity(
         uint256 tokenId,
         uint128 liquidity
@@ -180,15 +242,12 @@ contract UniswapV3Adapter {
             revert OnlyOwner();
         }
 
-        // Get the pool details from the deposits mapping
         Deposit memory deposit = deposits[tokenId];
 
-        // Check if the liquidity being decreased is within the available liquidity
         if (liquidity > deposit.liquidity) {
             revert InvalidLiquidity();
         }
 
-        // Construct the `DecreaseLiquidityParams` for the call to the nonfungiblePositionManager.decreaseLiquidity() function
         INonfungiblePositionManager.DecreaseLiquidityParams
             memory params = INonfungiblePositionManager.DecreaseLiquidityParams({
                 tokenId: tokenId,
@@ -197,28 +256,44 @@ contract UniswapV3Adapter {
                 amount1Min: 0,
                 deadline: block.timestamp
             });
-        console.log('----before token1 -----', IERC20(0x7c28FC9709650D49c8d0aED2f6ece6b191F192a9).balanceOf(address(this)));
-        console.log('----before token2 -----',IERC20(0xF407ed1303e3AE63a0e277AB7817A79A152e86Ef).balanceOf(address(this)));
-        // Call the nonfungiblePositionManager.decreaseLiquidity() function to decrease the liquidity
         (amount0, amount1) = nonfungiblePositionManager.decreaseLiquidity(params);
-        console.log(1111, amount0, amount1);
-
-        console.log('after token1 -----', IERC20(0x7c28FC9709650D49c8d0aED2f6ece6b191F192a9).balanceOf(address(this)));
-        console.log('after token2 -----',IERC20(0xF407ed1303e3AE63a0e277AB7817A79A152e86Ef).balanceOf(address(this)));
         
+        INonfungiblePositionManager.CollectParams memory collect = INonfungiblePositionManager
+            .CollectParams({
+                tokenId: tokenId,
+                recipient: address(this),
+                amount0Max: type(uint128).max,
+                amount1Max: type(uint128).max
+            });
 
-        // Update the liquidity and accumulated fees in the deposit
+        nonfungiblePositionManager.collect(collect);
+
         deposit.liquidity -= liquidity;
 
-        // Update the deposit in the deposits mapping
         deposits[tokenId] = deposit;
 
-        // Send the amount0 and amount1 to the owner
         _sendToOwner(tokenId, amount0, amount1);
         emit DecreaseLiquidity(msg.sender, tokenId, amount0, amount1);
         return (amount0, amount1); 
     }
 
+    /**
+     * @notice Increases the liquidity of the specified position.
+     * @param tokenId The ID of the position.
+     * @param amountAdd0 The amount of the first token to add.
+     * @param amountAdd1 The amount of the second token to add.
+     * @return liquidity The new liquidity amount of the position.
+     * @return amount0 The amount of the first token added.
+     * @return amount1 The amount of the second token added.
+     *
+     * @dev This function increases the liquidity of the specified position by transferring the specified amounts of tokens.
+     * The position is identified by its token ID. The desired amounts of tokens are specified, as well as the minimum amounts
+     * to transfer. The recipient of the liquidity position is specified, along with the deadline for the increase liquidity
+     * transaction. The function calls the `nonfungiblePositionManager.increaseLiquidity` function to increase the liquidity.
+     * The function passes the specified parameters and returns the amount of liquidity increased. It is important to note that
+     * the caller must have approved the ERC20 token spending by the `nonfungiblePositionManager` contract for the specified
+     * token amounts prior to calling this function.
+    */
     function increaseLiquidity(
         uint256 tokenId,
         uint256 amountAdd0,
@@ -233,7 +308,6 @@ contract UniswapV3Adapter {
 
         TransferHelper.safeApprove(deposits[tokenId].token0, address(nonfungiblePositionManager), amountAdd0);
         TransferHelper.safeApprove(deposits[tokenId].token1, address(nonfungiblePositionManager), amountAdd1);
-
 
         INonfungiblePositionManager.IncreaseLiquidityParams
             memory params = INonfungiblePositionManager.IncreaseLiquidityParams({
@@ -250,21 +324,31 @@ contract UniswapV3Adapter {
         return (liquidity, amount0, amount1);
     }
 
+    /**
+     * @notice Swaps an exact input amount of a token for an output amount of another token.
+     * @param tokenIn The address of the input token.
+     * @param amountIn The amount of the input token to swap.
+     * @param amountOutMinimum The minimum amount of the output token to receive.
+     * @param path The path of tokens to swap through.
+     * @return amountOut The actual amount of the output token received.
+     *
+     * @dev This function swaps an exact input amount of a token for an output amount of another token. The input token and its amount
+     * are specified, as well as the minimum amount of the output token to receive. The path of tokens to swap through is provided,
+     * along with the recipient of the swapped output tokens and the deadline for the swap transaction. The function calls the
+     * `nonfungiblePositionManager.swapExactInput` function to perform the swap. The function passes the specified parameters and
+     * returns the amount of the output token received. It is important to note that the caller must have approved the ERC20 token
+     * spending by the `nonfungiblePositionManager` contract for the specified input token amount prior to calling this function.
+    */
     function swapExactInput(
         address tokenIn,
         uint256 amountIn,
         uint256 amountOutMinimum,
         bytes memory path
     ) external returns (uint256 amountOut) {
-        // msg.sender must approve this contract
-
-        // Transfer the specified amount of tokenIn to this contract.
         TransferHelper.safeTransferFrom(tokenIn, msg.sender, address(this), amountIn);
 
-        // Approve the router to spend tokenIn.
         TransferHelper.safeApprove(tokenIn, address(swapRouter), amountIn);
 
-        // Naively set amountOutMinimum to 0. In production, use an oracle or other data source to choose a safer value for amountOutMinimum.
         ISwapRouter.ExactInputParams memory params = ISwapRouter.ExactInputParams({
             path: path,
             recipient: msg.sender,
@@ -273,23 +357,34 @@ contract UniswapV3Adapter {
             amountOutMinimum: amountOutMinimum
         });
 
-        // The call to `exactInputSingle` executes the swap.
         amountOut = swapRouter.exactInput(params);
         emit SwapInput(msg.sender, tokenIn, amountIn, amountOut);
         return amountOut;
     }
 
+    /**
+     * @notice Swaps an exact output amount of a token for an input amount of another token.
+     * @param tokenIn The address of the input token.
+     * @param amountOut The amount of the output token to receive.
+     * @param amountInMaximum The maximum amount of the input token to spend.
+     * @param path The path of tokens to swap through.
+     * @return amountIn The actual amount of the input token spent.
+     *
+     * @dev This function swaps an exact output amount of a token for a maximum input amount of another token. The output token and its
+     * amount are specified, as well as the maximum amount of the input token to spend. The path of tokens to swap through is provided,
+     * along with the recipient of the swapped output tokens and the deadline for the swap transaction. The function calls the
+     * `nonfungiblePositionManager.swapExactOutput` function to perform the swap. The function passes the specified parameters and
+     * returns the amount of the input token spent. It is important to note that the caller must have approved the ERC20 token spending
+     * by the `nonfungiblePositionManager` contract for the specified input token amount prior to calling this function.
+    */
     function swapExactOutput(
         address tokenIn,
         uint256 amountOut,
         uint256 amountInMaximum,
         bytes memory path
     ) external returns (uint256 amountIn) {
-        // Transfer the specified amount of tokenIn to this contract.
         TransferHelper.safeTransferFrom(tokenIn, msg.sender, address(this), amountInMaximum);
 
-        // Approve the router to spend the specifed `amountInMaximum` of tokenIn.
-        // In production, you should choose the maximum amount to spend based on oracles or other data sources to acheive a better swap.
         TransferHelper.safeApprove(tokenIn, address(swapRouter), amountInMaximum);
 
         ISwapRouter.ExactOutputParams memory params = ISwapRouter.ExactOutputParams({
@@ -300,11 +395,8 @@ contract UniswapV3Adapter {
             amountInMaximum: amountInMaximum
         });
 
-        // Executes the swap returning the amountIn needed to spend to receive the desired amountOut.
         amountIn = swapRouter.exactOutput(params);
 
-        // For exact output swaps, the amountInMaximum may not have all been spent.
-        // If the actual amount spent (amountIn) is less than the specified maximum amount, we must refund the msg.sender and approve the swapRouter to spend 0.
         if (amountIn < amountInMaximum) {
             TransferHelper.safeApprove(tokenIn, address(swapRouter), 0);
             TransferHelper.safeTransfer(tokenIn, msg.sender, amountInMaximum - amountIn);
