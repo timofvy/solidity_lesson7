@@ -289,7 +289,7 @@ export interface IERC721Enumerable extends BaseContract {
 
     setApprovalForAll(
       operator: PromiseOrValue<string>,
-      _approved: PromiseOrValue<boolean>,
+      approved: PromiseOrValue<boolean>,
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<ContractTransaction>;
 
@@ -363,7 +363,7 @@ export interface IERC721Enumerable extends BaseContract {
 
   setApprovalForAll(
     operator: PromiseOrValue<string>,
-    _approved: PromiseOrValue<boolean>,
+    approved: PromiseOrValue<boolean>,
     overrides?: Overrides & { from?: PromiseOrValue<string> }
   ): Promise<ContractTransaction>;
 
@@ -437,7 +437,7 @@ export interface IERC721Enumerable extends BaseContract {
 
     setApprovalForAll(
       operator: PromiseOrValue<string>,
-      _approved: PromiseOrValue<boolean>,
+      approved: PromiseOrValue<boolean>,
       overrides?: CallOverrides
     ): Promise<void>;
 
@@ -547,7 +547,7 @@ export interface IERC721Enumerable extends BaseContract {
 
     setApprovalForAll(
       operator: PromiseOrValue<string>,
-      _approved: PromiseOrValue<boolean>,
+      approved: PromiseOrValue<boolean>,
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<BigNumber>;
 
@@ -622,7 +622,7 @@ export interface IERC721Enumerable extends BaseContract {
 
     setApprovalForAll(
       operator: PromiseOrValue<string>,
-      _approved: PromiseOrValue<boolean>,
+      approved: PromiseOrValue<boolean>,
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<PopulatedTransaction>;
 

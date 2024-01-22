@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-pragma solidity ^0.8.15;
+pragma solidity ^0.8.20;
 pragma abicoder v2;
 import "hardhat/console.sol"; 
 
 import "@uniswap/v3-periphery/contracts/interfaces/ISwapRouter.sol";
 import "@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol";
 import "@uniswap/v3-periphery/contracts/interfaces/INonfungiblePositionManager.sol";
+import "@openzeppelin/contracts/utils/math/Math.sol";
 
 contract UniswapV3Adapter {
     ISwapRouter private swapRouter;
@@ -54,20 +55,6 @@ contract UniswapV3Adapter {
         nonfungiblePositionManager = _nonfungiblePositionManager;
     }
 
-    /**
-     * @notice Creates a new pool for the given tokens. If the tokens are not in the correct order, it swaps their positions.
-     * @param token0 The address of the first token.
-     * @param token1 The address of the second token.
-     * @param fee The fee for the pool.
-     * @param reserve0 The reserve of the first token.
-     * @param reserve1 The reserve of the second token.
-     * @return pool The address of the created pool.
-     * @dev This function creates a new Uniswap V3 pool for the specified tokens. If the tokens are not in the correct order,
-     * it swaps their positions to ensure consistency. The fee for the pool is also specified. The reserves of the tokens are
-     * used to compute the initial price of the pool. The `nonfungiblePositionManager.createAndInitializePoolIfNecessary`
-     * function is called to create the pool if it doesn't already exist. The function emits a `CreatePool` event to indicate
-     * the creation of the pool. The address of the created pool is returned.
-     */
     function createPool(
         address token0,
         address token1,
@@ -358,6 +345,7 @@ contract UniswapV3Adapter {
         });
 
         amountOut = swapRouter.exactInput(params);
+        console.log('amountOut',amountOut);
         emit SwapInput(msg.sender, tokenIn, amountIn, amountOut);
         return amountOut;
     }
@@ -396,6 +384,8 @@ contract UniswapV3Adapter {
         });
 
         amountIn = swapRouter.exactOutput(params);
+                console.log("amountOut", amountOut);
+        console.log("OUTPUT", amountIn);
 
         if (amountIn < amountInMaximum) {
             TransferHelper.safeApprove(tokenIn, address(swapRouter), 0);
@@ -409,23 +399,9 @@ contract UniswapV3Adapter {
         uint256 reserve1,
         uint256 reserve0
     ) private pure returns (uint160 result) {
-        uint256 numerator = reserve1 * (2 ** 96);
+        uint256 product = uint256(reserve0) * reserve1;
+        uint256 sqrtPriceX96 = Math.sqrt(product) * 2**96;
 
-        uint256 quotient = numerator / reserve0;
-        uint256 squareRoot = babylonian(quotient);
-
-        return uint160(squareRoot);
-    }
-
-    function babylonian(uint256 n) private pure returns (uint256) {
-        uint256 x = n / 2;
-        uint256 y = 0;
-
-        while (x != y) {
-            y = x;
-            x = (n / x + x) / 2;
-        }
-
-        return x;
+        return uint160(sqrtPriceX96);
     }
 }

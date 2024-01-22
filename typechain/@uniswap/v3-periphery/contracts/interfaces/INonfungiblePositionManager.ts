@@ -680,7 +680,7 @@ export interface INonfungiblePositionManager extends BaseContract {
 
     setApprovalForAll(
       operator: PromiseOrValue<string>,
-      _approved: PromiseOrValue<boolean>,
+      approved: PromiseOrValue<boolean>,
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<ContractTransaction>;
 
@@ -864,7 +864,7 @@ export interface INonfungiblePositionManager extends BaseContract {
 
   setApprovalForAll(
     operator: PromiseOrValue<string>,
-    _approved: PromiseOrValue<boolean>,
+    approved: PromiseOrValue<boolean>,
     overrides?: Overrides & { from?: PromiseOrValue<string> }
   ): Promise<ContractTransaction>;
 
@@ -1063,7 +1063,7 @@ export interface INonfungiblePositionManager extends BaseContract {
 
     setApprovalForAll(
       operator: PromiseOrValue<string>,
-      _approved: PromiseOrValue<boolean>,
+      approved: PromiseOrValue<boolean>,
       overrides?: CallOverrides
     ): Promise<void>;
 
@@ -1294,7 +1294,7 @@ export interface INonfungiblePositionManager extends BaseContract {
 
     setApprovalForAll(
       operator: PromiseOrValue<string>,
-      _approved: PromiseOrValue<boolean>,
+      approved: PromiseOrValue<boolean>,
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<BigNumber>;
 
@@ -1451,7 +1451,7 @@ export interface INonfungiblePositionManager extends BaseContract {
 
     setApprovalForAll(
       operator: PromiseOrValue<string>,
-      _approved: PromiseOrValue<boolean>,
+      approved: PromiseOrValue<boolean>,
       overrides?: Overrides & { from?: PromiseOrValue<string> }
     ): Promise<PopulatedTransaction>;
 
