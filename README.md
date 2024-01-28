@@ -1,4 +1,4 @@
-UniswapV2Adapter contract learning LESSON 7
+Staking and Vesting contracts learning LESSON 8
 
 -   [Crypton.studio Hardhat Starter Kit](#Crypton.studio-hardhat-starter-kit)
 -   [Getting Started](#getting-started)

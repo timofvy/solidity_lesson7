@@ -27,6 +27,7 @@ const FORKING_BLOCK_NUMBER = process.env.FORKING_BLOCK_NUMBER
 
 // Your API key for Etherscan, obtain one at https://etherscan.io/
 const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY || "Your etherscan API key"
+const SEPOLIA_API_KEY = process.env.SEPOLIA_API_KEY || "Your etherscan API key"
 const POLYGONSCAN_API_KEY = process.env.POLYGONSCAN_API_KEY || "Your polygonscan API key"
 
 const config: HardhatUserConfig = {
@@ -80,7 +81,7 @@ const config: HardhatUserConfig = {
         // yarn hardhat verify --network <NETWORK> <CONTRACT_ADDRESS> <CONSTRUCTOR_PARAMETERS>
         apiKey: {
             // npx hardhat verify --list-networks
-            sepolia: ETHERSCAN_API_KEY,
+            sepolia: SEPOLIA_API_KEY,
             mainnet: ETHERSCAN_API_KEY,
             polygon: POLYGONSCAN_API_KEY,
             polygonMumbai: POLYGONSCAN_API_KEY,
@@ -106,8 +107,8 @@ const config: HardhatUserConfig = {
                         enabled: true,
                         runs: 200,
                         details: {
-                            yul: true
-                        }
+                            yul: true,
+                        },
                     },
                 },
             },
